@@ -1,6 +1,6 @@
 from django.core import management
 
-from {{project_name}} import celery_app
+from payment_gateway import celery_app
 
 
 @celery_app.task

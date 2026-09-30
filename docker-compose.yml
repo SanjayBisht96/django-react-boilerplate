@@ -1,10 +1,12 @@
+name: payment_gateway
+
 services:
   db:
-    image: "postgres:alpine"
+    image: "postgres:16-alpine"
     environment:
-      - POSTGRES_USER={{project_name}}
+      - POSTGRES_USER=payment_gateway
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB={{project_name}}
+      - POSTGRES_DB=payment_gateway
     ports:
       - "5432"
     volumes:
@@ -47,7 +49,7 @@ services:
     build:
       dockerfile: backend/Dockerfile
       context: .
-    command: celery --app={{project_name}} worker --loglevel=info
+    command: celery --app=payment_gateway worker --loglevel=info
     volumes:
       - ./:/home/user/app/
     env_file: backend/.env
@@ -64,5 +66,5 @@ services:
 
 volumes:
   dbdata:
-    name: {{project_name}}_dbdata
+    name: "payment_gateway_dbdata"
     external: true

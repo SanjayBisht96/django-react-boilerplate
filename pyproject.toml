@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "{{project_name}}"
+name = "payment_gateway"
 version = "0.1.0"
 description = "Django 5, React, Tailwind 4 with Python 3 and webpack project boilerplate"
 authors = ["Vinta Software <contact@vinta.com.br>"]

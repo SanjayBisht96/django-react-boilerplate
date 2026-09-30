@@ -1,21 +1,21 @@
 databases:
-  - name: {{project_name}}-postgres
-    databaseName: {{project_name}}
+  - name: payment_gateway-postgres
+    databaseName: payment_gateway
     plan: free
-    user: {{project_name}}
+    user: payment_gateway
 
 services:
   - type: keyvalue
-    name: {{project_name}}-redis
+    name: payment_gateway-redis
     plan: free
     ipAllowList: [] # only allow internal connections
 
   - type: web
-    name: {{project_name}}
+    name: payment_gateway
     plan: free
     runtime: python
     buildCommand: "./render_build.sh"
-    startCommand: "poetry run gunicorn {{project_name}}.wsgi:application --chdir backend --limit-request-line 8188 --log-file -"
+    startCommand: "poetry run gunicorn payment_gateway.wsgi:application --chdir backend --limit-request-line 8188 --log-file -"
     envVars:
       - key: ENABLE_DJANGO_COLLECTSTATIC
         value: 1
@@ -23,12 +23,12 @@ services:
         value: 1
       - key: DATABASE_URL
         fromDatabase:
-          name: {{project_name}}-postgres
+          name: payment_gateway-postgres
           property: connectionString
       - key: REDIS_URL
         fromService:
           type: keyvalue
-          name: {{project_name}}-redis
+          name: payment_gateway-redis
           property: connectionString
       - key: SECRET_KEY
         sync: false
@@ -43,7 +43,7 @@ services:
   #   runtime: python
   #   env: python
   #   buildCommand: poetry install
-  #   startCommand: "poetry run celery --workdir backend --app={{project_name}} worker --loglevel=info --max-memory-per-child=$WORKER_MAX_MEMORY  --concurrency=$WORKER_CONCURRENCY"
+  #   startCommand: "poetry run celery --workdir backend --app=payment_gateway worker --loglevel=info --max-memory-per-child=$WORKER_MAX_MEMORY  --concurrency=$WORKER_CONCURRENCY"
   #   envVars:
   #     - key: REMAP_SIGTERM
   #       value: SIGQUIT
@@ -75,12 +75,12 @@ services:
   #       sync: false
   #     - key: DATABASE_URL
   #       fromDatabase:
-  #         name: {{project_name}}-postgres
+  #         name: payment_gateway-postgres
   #         property: connectionString
   #     - key: REDIS_URL
   #       fromService:
   #         type: redis
-  #         name: {{project_name}}-redis
+  #         name: payment_gateway-redis
   #         property: connectionString
   #     - fromGroup: python-services
   #     - fromGroup: integrations-credentials
@@ -89,18 +89,18 @@ services:
   #   runtime: python
   #   env: python
   #   buildCommand: poetry install
-  #   startCommand: "poetry run celery --workdir backend --app={{project_name}} beat --loglevel=info"
+  #   startCommand: "poetry run celery --workdir backend --app=payment_gateway beat --loglevel=info"
   #   envVars:
   #     - key: REMAP_SIGTERM
   #       value: SIGQUIT
   #     - key: DATABASE_URL
   #       fromDatabase:
-  #         name: {{project_name}}-postgres
+  #         name: payment_gateway-postgres
   #         property: connectionString
   #     - key: REDIS_URL
   #       fromService:
   #         type: redis
-  #         name: {{project_name}}-redis
+  #         name: payment_gateway-redis
   #         property: connectionString
   #     - fromGroup: python-services
   #     - fromGroup: integrations-credentials
@@ -113,7 +113,7 @@ envVarGroups:
       - key: POETRY_VERSION
         value: 2.0.1
       - key: DJANGO_SETTINGS_MODULE
-        value: {{project_name}}.settings.production
+        value: payment_gateway.settings.production
       - key: ALLOWED_HOSTS
         value: '*'
   - name: integrations-credentials

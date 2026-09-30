@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build {{ project_name }}
+    name: Build payment_gateway
     strategy:
       matrix:
         python: [3.12]
@@ -125,7 +125,7 @@ jobs:
       - name: Linting backend
         run: poetry run ruff check ./backend/
         env:
-          DJANGO_SETTINGS_MODULE: "{{ project_name }}.settings.local_base"
+          DJANGO_SETTINGS_MODULE: "payment_gateway.settings.local_base"
           SECRET_KEY: ${% templatetag openvariable %} steps.secret_id_generator.outputs.SECRET_KEY {% templatetag closevariable %}
           DATABASE_URL: "sqlite:///"
           ALLOWED_HOSTS: ".example.org"
@@ -144,7 +144,7 @@ jobs:
           poetry run python manage.py makemigrations --check --dry-run
         working-directory: backend
         env:
-          DJANGO_SETTINGS_MODULE: "{{ project_name }}.settings.production"
+          DJANGO_SETTINGS_MODULE: "payment_gateway.settings.production"
           SECRET_KEY: ${% templatetag openvariable %} steps.secret_id_generator.outputs.SECRET_KEY {% templatetag closevariable %}
           DATABASE_URL: "sqlite:///"
           ALLOWED_HOSTS: ".example.org"
@@ -158,7 +158,7 @@ jobs:
           poetry run python manage.py check --deploy
         working-directory: backend
         env:
-          DJANGO_SETTINGS_MODULE: "{{ project_name }}.settings.production"
+          DJANGO_SETTINGS_MODULE: "payment_gateway.settings.production"
           SECRET_KEY: ${% templatetag openvariable %} steps.secret_id_generator.outputs.SECRET_KEY {% templatetag closevariable %}
           DATABASE_URL: "sqlite:///"
           ALLOWED_HOSTS: ".example.org"
