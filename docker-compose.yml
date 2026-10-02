@@ -1,6 +1,7 @@
 name: payment_gateway
 
 services:
+
   db:
     image: "postgres:16-alpine"
     environment:
@@ -11,14 +12,20 @@ services:
       - "5432"
     volumes:
       - dbdata:/var/lib/postgresql/data:delegated
+    networks:
+      - payment_gateway
 
   broker:
     image: "rabbitmq:alpine"
+    networks:
+      - payment_gateway
 
   result:
     image: "redis:alpine"
     ports:
-    - "6379:6379"
+      - "6379:6379"
+    networks:
+      - payment_gateway
 
   frontend:
     build:
@@ -29,6 +36,8 @@ services:
       - /app/node_modules
     ports:
       - "3000:3000"
+    networks:
+      - payment_gateway
 
   backend:
     build:
@@ -44,6 +53,8 @@ services:
       - broker
       - result
       - frontend
+    networks:
+      - payment_gateway
 
   celery:
     build:
@@ -57,14 +68,22 @@ services:
       - db
       - broker
       - result
+    networks:
+      - payment_gateway
 
-  mailhog: # service for faking a SMTP server
+  mailhog:
     image: mailhog/mailhog
     ports:
-      - '1025:1025' # smtp server
-      - '8025:8025' # web ui
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - payment_gateway
 
 volumes:
   dbdata:
     name: "payment_gateway_dbdata"
     external: true
+
+networks:
+  payment_gateway:
+    driver: bridge

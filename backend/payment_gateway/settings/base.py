@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     "django_guid",
     "common",
     "users",
+    "mock_processor",
+    "payments",
 ]
 
 MIDDLEWARE = [
@@ -252,6 +254,9 @@ DEFENDER_LOGIN_FAILURE_LIMIT = 3
 DEFENDER_COOLOFF_TIME = 300  # 5 minutes
 DEFENDER_LOCKOUT_TEMPLATE = "defender/lockout.html"
 DEFENDER_REDIS_URL = config("REDIS_URL")
+
+PROCESSOR_WEBHOOK_SECRET = config("PROCESSOR_WEBHOOK_SECRET", default="test-secret")
+PAYMENTS_WEBHOOK_URL = config("PAYMENTS_WEBHOOK_URL", default="http://localhost:8000")
 
 # Admin Env Label
 ADMIN_ENVIRONMENT_LABEL = config("ADMIN_ENVIRONMENT_LABEL", default="")

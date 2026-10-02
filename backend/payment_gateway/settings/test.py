@@ -3,6 +3,14 @@ from .base import *
 
 SECRET_KEY = "test"  # nosec
 
+# Use SQLite for testing (no external DB server needed)
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": ":memory:",
+    }
+}
+
 STATIC_ROOT = base_dir_join("staticfiles")
 STATIC_URL = "/static/"
 

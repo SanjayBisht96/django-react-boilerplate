@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 
 import DjangoImgSrc from '@/assets/images/django-logo-negative.png';
-import { restRestCheckRetrieve } from '@/js/api';
+import { apiRestRestCheckRetrieve } from '@/js/api';
 import { TopNav } from '@/js/components';
 
 const Home = () => {
   const [showBugComponent, setShowBugComponent] = useState(false);
-  const [restCheck, setRestCheck] = useState<Awaited<ReturnType<typeof restRestCheckRetrieve>>>();
+  const [restCheck, setRestCheck] = useState<Awaited<ReturnType<typeof apiRestRestCheckRetrieve>>>();
 
   useEffect(() => {
     async function onFetchRestCheck() {
-      setRestCheck(await restRestCheckRetrieve());
+      setRestCheck(await apiRestRestCheckRetrieve());
     }
     onFetchRestCheck();
   }, []);

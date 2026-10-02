@@ -4,13 +4,94 @@ info:
   version: 0.1.0
   description: A Django project boilerplate with Vinta's best practices
 paths:
+  /api/payments:
+    post:
+      operationId: api_payments_create
+      description: Create a payment with idempotency support.
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        schema:
+          type: string
+        description: Unique key to safely retry this request without creating duplicate
+          payments.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PaymentCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PaymentCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+          description: ''
+  /api/payments/{payment_id}:
+    get:
+      operationId: api_payments_retrieve
+      description: Get payment status and ledger history.
+      parameters:
+      - in: path
+        name: payment_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+          description: ''
+  /api/payments/{payment_id}/replay:
+    post:
+      operationId: api_payments_replay_create
+      description: 'Admin-only: re-request a stuck payment''s result from the processor.'
+      parameters:
+      - in: path
+        name: payment_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+          description: ''
   /api/rest/rest-check/:
     get:
-      operationId: rest_rest_check_retrieve
+      operationId: api_rest_rest_check_retrieve
       description: This endpoint checks if the REST API is working.
       summary: Check REST API
       tags:
-      - rest
+      - api
       security:
       - cookieAuth: []
       - {}
@@ -29,7 +110,7 @@ paths:
           description: ''
   /api/users/:
     get:
-      operationId: users_list
+      operationId: api_users_list
       parameters:
       - name: limit
         required: false
@@ -44,7 +125,7 @@ paths:
         schema:
           type: integer
       tags:
-      - users
+      - api
       security:
       - cookieAuth: []
       responses:
@@ -55,9 +136,9 @@ paths:
                 $ref: '#/components/schemas/PaginatedUserList'
           description: ''
     post:
-      operationId: users_create
+      operationId: api_users_create
       tags:
-      - users
+      - api
       requestBody:
         content:
           application/json:
@@ -81,7 +162,7 @@ paths:
           description: ''
   /api/users/{id}/:
     get:
-      operationId: users_retrieve
+      operationId: api_users_retrieve
       parameters:
       - in: path
         name: id
@@ -90,7 +171,7 @@ paths:
         description: A unique integer value identifying this user.
         required: true
       tags:
-      - users
+      - api
       security:
       - cookieAuth: []
       responses:
@@ -101,7 +182,7 @@ paths:
                 $ref: '#/components/schemas/User'
           description: ''
     put:
-      operationId: users_update
+      operationId: api_users_update
       parameters:
       - in: path
         name: id
@@ -110,7 +191,7 @@ paths:
         description: A unique integer value identifying this user.
         required: true
       tags:
-      - users
+      - api
       requestBody:
         content:
           application/json:
@@ -133,7 +214,7 @@ paths:
                 $ref: '#/components/schemas/User'
           description: ''
     patch:
-      operationId: users_partial_update
+      operationId: api_users_partial_update
       parameters:
       - in: path
         name: id
@@ -142,7 +223,7 @@ paths:
         description: A unique integer value identifying this user.
         required: true
       tags:
-      - users
+      - api
       requestBody:
         content:
           application/json:
@@ -164,7 +245,7 @@ paths:
                 $ref: '#/components/schemas/User'
           description: ''
     delete:
-      operationId: users_destroy
+      operationId: api_users_destroy
       parameters:
       - in: path
         name: id
@@ -173,14 +254,135 @@ paths:
         description: A unique integer value identifying this user.
         required: true
       tags:
-      - users
+      - api
       security:
       - cookieAuth: []
       responses:
         '204':
           description: No response body
+  /processor/charge:
+    post:
+      operationId: processor_charge_create
+      description: |-
+        Charge a tokenized payment method.
+
+        Returns a processor_reference. The final result arrives via webhook.
+      tags:
+      - processor
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Charge'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Charge'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Charge'
+        required: true
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /processor/tokenize:
+    post:
+      operationId: processor_tokenize_create
+      description: |-
+        Tokenize card or bank details.
+
+        Accepts card details (number, expiry, CVV) or bank details
+        (account_number, routing_number) and returns a token.
+      tags:
+      - processor
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Tokenize'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Tokenize'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Tokenize'
+        required: true
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /webhooks/processor:
+    post:
+      operationId: webhooks_processor_create
+      description: Receive and process processor webhooks.
+      tags:
+      - webhooks
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
 components:
   schemas:
+    Charge:
+      type: object
+      properties:
+        token:
+          type: string
+        amount:
+          type: integer
+          minimum: 1
+        currency:
+          type: string
+          default: USD
+      required:
+      - amount
+      - token
+    LedgerEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        event_id:
+          type: string
+          maxLength: 255
+        status:
+          type: string
+          maxLength: 10
+        failure_code:
+          type: string
+          nullable: true
+          maxLength: 50
+        occurred_at:
+          type: string
+          format: date-time
+        created:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created
+      - event_id
+      - id
+      - occurred_at
+      - status
     Message:
       type: object
       properties:
@@ -188,6 +390,14 @@ components:
           type: string
       required:
       - message
+    MethodEnum:
+      enum:
+      - card
+      - bank
+      type: string
+      description: |-
+        * `card` - card
+        * `bank` - bank
     PaginatedUserList:
       type: object
       required:
@@ -245,6 +455,97 @@ components:
           type: string
           format: date-time
           nullable: true
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        amount:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: Amount in minor units
+        currency:
+          type: string
+          maxLength: 3
+        payment_token:
+          type: string
+          maxLength: 255
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        failure_code:
+          type: string
+          nullable: true
+          maxLength: 50
+        processor_reference:
+          type: string
+          nullable: true
+          maxLength: 255
+        ledger:
+          type: array
+          items:
+            $ref: '#/components/schemas/LedgerEntry'
+          readOnly: true
+        created:
+          type: string
+          format: date-time
+          readOnly: true
+        modified:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - created
+      - id
+      - ledger
+      - modified
+      - payment_token
+    PaymentCreate:
+      type: object
+      properties:
+        amount:
+          type: integer
+          minimum: 1
+        currency:
+          type: string
+          default: USD
+          maxLength: 3
+        payment_token:
+          type: string
+          maxLength: 255
+      required:
+      - amount
+      - payment_token
+    StatusEnum:
+      enum:
+      - pending
+      - succeeded
+      - failed
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `succeeded` - Succeeded
+        * `failed` - Failed
+    Tokenize:
+      type: object
+      properties:
+        method:
+          $ref: '#/components/schemas/MethodEnum'
+        card_number:
+          type: string
+        expiry:
+          type: string
+        cvv:
+          type: string
+        account_number:
+          type: string
+        routing_number:
+          type: string
+      required:
+      - method
     User:
       type: object
       properties:

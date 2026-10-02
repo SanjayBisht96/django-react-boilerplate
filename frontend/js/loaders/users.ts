@@ -1,14 +1,14 @@
 import { AxiosError } from 'axios';
 import { redirectDocument } from 'react-router';
 
-import { usersList } from '@/js/api';
+import { apiUsersList } from '@/js/api';
 
 export async function usersLoader({ request }: { request: Request }) {
   const url = new URL(request.url);
   const limit = Number(url.searchParams.get('limit') || 10);
   const offset = Number(url.searchParams.get('offset') || 0);
   try {
-    const response = await usersList({
+    const response = await apiUsersList({
       query: { limit, offset },
       throwOnError: true,
     });
