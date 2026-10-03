@@ -9,7 +9,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 from drf_spectacular.types import OpenApiTypes
@@ -77,10 +77,15 @@ def _charge_token(token: str, amount: int, currency: str) -> str:
         )
     ],
 )
-@api_view(["POST"])
+@api_view(["GET", "POST"])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def create_payment(request):
-    """Create a payment with idempotency support."""
+    """List payments, or create a payment with idempotency support."""
+    if request.method == "GET":
+        payments = Payment.objects.all().order_by("-created")
+        return Response(PaymentSerializer(payments, many=True).data)
+
     idempotency_key = request.headers.get("Idempotency-Key")
     if not idempotency_key:
         return Response(
@@ -132,11 +137,17 @@ def create_payment(request):
         processor_reference,
     )
 
+    # Trigger async processor settlement → webhook to this service
+    from mock_processor.tasks import process_charge_webhook
+
+    process_charge_webhook.delay(processor_reference)
+
     return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema(responses=PaymentSerializer)
 @api_view(["GET"])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def get_payment(request, payment_id):
     """Get payment status and ledger history."""
@@ -152,6 +163,7 @@ def get_payment(request, payment_id):
 
 @extend_schema(request=None, responses={200: None})
 @api_view(["POST"])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def processor_webhook(request):
     """Receive and process processor webhooks."""

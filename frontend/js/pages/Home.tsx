@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router';
 
 import DjangoImgSrc from '@/assets/images/django-logo-negative.png';
 import { apiRestRestCheckRetrieve } from '@/js/api';
@@ -30,7 +31,15 @@ const Home = () => {
         </div>
         <img alt="Django Negative Logo" className="w-[100px]" src={DjangoImgSrc} />
       </div>
-      <h2 className="text-4xl mb-2">Rest API</h2>
+      <h2 className="text-4xl mb-2">Mock Processor</h2>
+      <p className="mb-2">View the requests received by the mock payment processor.</p>
+      <Link
+        className="inline-block px-3 py-2 border border-black text-black rounded-md hover:bg-black hover:text-white transition duration-200"
+        to="/mock-processor"
+      >
+        View mock processor requests
+      </Link>
+      <h2 className="text-4xl mb-2 mt-6">Rest API</h2>
       <p className="mb-2">{restCheck?.data?.message}</p>
       <button
         className="px-2 py-1 border border-black text-black rounded-md hover:bg-black hover:text-white transition duration-200 cursor-pointer"

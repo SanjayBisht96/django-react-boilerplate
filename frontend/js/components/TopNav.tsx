@@ -40,6 +40,34 @@ const TopNav = () => {
           >
             Users
           </NavLink>
+
+          <NavLink
+            className={({ isActive }) =>
+              [
+                'px-3 py-2 rounded-lg text-sm font-medium text-zinc-300 transition',
+                'hover:text-white hover:bg-white/5',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40',
+                isActive ? 'text-white bg-white/10' : '',
+              ].join(' ')
+            }
+            to="/payments"
+          >
+            Payments
+          </NavLink>
+
+          <NavLink
+            className={({ isActive }) =>
+              [
+                'px-3 py-2 rounded-lg text-sm font-medium text-zinc-300 transition',
+                'hover:text-white hover:bg-white/5',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40',
+                isActive ? 'text-white bg-white/10' : '',
+              ].join(' ')
+            }
+            to="/mock-processor"
+          >
+            Mock Processor
+          </NavLink>
         </div>
       </nav>
     </header>

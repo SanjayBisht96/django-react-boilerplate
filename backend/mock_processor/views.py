@@ -3,7 +3,7 @@ import random
 from datetime import datetime, timezone
 
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from drf_spectacular.types import OpenApiTypes
@@ -11,7 +11,7 @@ from drf_spectacular.utils import extend_schema
 
 from .luhn import luhn_check
 from .models import Charge, PaymentMethod
-from .serializers import ChargeSerializer, TokenizeSerializer
+from .serializers import ChargeListSerializer, ChargeSerializer, TokenizeSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,7 @@ def _detect_outcome(last4: str, method: str) -> tuple:
 
 @extend_schema(request=TokenizeSerializer, responses={200: OpenApiTypes.OBJECT})
 @api_view(["POST"])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def tokenize(request):
     """Tokenize card or bank details.
@@ -162,8 +163,19 @@ def _tokenize_bank(data: dict) -> Response:
     )
 
 
+@extend_schema(responses=ChargeListSerializer(many=True))
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def charges(request):
+    """List all charge requests received by the mock processor."""
+    qs = Charge.objects.select_related("payment_method").order_by("-created")
+    return Response(ChargeListSerializer(qs, many=True).data)
+
+
 @extend_schema(request=ChargeSerializer, responses={200: OpenApiTypes.OBJECT})
 @api_view(["POST"])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def charge(request):
     """Charge a tokenized payment method.
