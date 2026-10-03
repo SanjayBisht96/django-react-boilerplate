@@ -22,10 +22,12 @@ docker_setup:
 	docker compose run --rm frontend pnpm run openapi-ts
 
 docker_test:
-	docker compose run --rm backend python manage.py test $(ARG) --parallel --keepdb
+	docker compose up -d db-test
+	TEST_DATABASE_URL=postgres://payment_gateway:password@db-test:5432/payment_gateway_test docker compose run --rm -e TEST_DATABASE_URL backend python manage.py test $(ARG) --parallel --keepdb
 
 docker_test_reset:
-	docker compose run --rm backend python manage.py test $(ARG) --parallel
+	docker compose up -d db-test
+	TEST_DATABASE_URL=postgres://payment_gateway:password@db-test:5432/payment_gateway_test docker compose run --rm -e TEST_DATABASE_URL backend python manage.py test $(ARG) --parallel
 
 docker_up:
 	docker compose up -d

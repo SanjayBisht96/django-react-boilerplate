@@ -3,12 +3,13 @@ from .base import *
 
 SECRET_KEY = "test"  # nosec
 
-# Use SQLite for testing (no external DB server needed)
+# Use a dedicated Postgres test database (docker-compose `db-test` service)
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": ":memory:",
-    }
+    "default": config(
+        "TEST_DATABASE_URL",
+        default="postgres://payment_gateway:password@localhost:5433/payment_gateway_test",
+        cast=db_url,
+    )
 }
 
 STATIC_ROOT = base_dir_join("staticfiles")

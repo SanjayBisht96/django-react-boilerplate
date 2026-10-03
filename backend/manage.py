@@ -15,7 +15,7 @@ if __name__ == "__main__":
                 "Ignoring config('DJANGO_SETTINGS_MODULE') because it's test. "
                 "Using 'payment_gateway.settings.test'"
             )
-        os.environ.setdefault("DJANGO_SETTINGS_MODULE", "payment_gateway.settings.test")
+        os.environ["DJANGO_SETTINGS_MODULE"] = "payment_gateway.settings.test"
     else:
         if settings_module is None:
             print(

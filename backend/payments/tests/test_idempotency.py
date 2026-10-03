@@ -5,6 +5,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from payments.models import Payment
+from mock_processor.models import PaymentMethod
 
 
 class IdempotencyCreateTest(TestCase):
@@ -17,6 +18,12 @@ class IdempotencyCreateTest(TestCase):
             "currency": "USD",
             "payment_token": "tok_test_abc123",
         }
+        PaymentMethod.objects.create(
+            token="tok_test_abc123",
+            method="card",
+            last4="4242",
+            brand_or_bank_type="visa",
+        )
 
     def _body_hash(self, body):
         canonical = json.dumps(body, sort_keys=True, separators=(",", ":"))

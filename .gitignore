@@ -50,3 +50,7 @@ tmp_email/
 .direnv
 .envrc
 .tool-versions
+
+# Local static/media roots
+/backend/staticfiles/*
+/backend/mediafiles/*

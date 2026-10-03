@@ -15,6 +15,19 @@ services:
     networks:
       - payment_gateway
 
+  db-test:
+    image: "postgres:16-alpine"
+    environment:
+      - POSTGRES_USER=payment_gateway
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=payment_gateway_test
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - payment_gateway
+
   broker:
     image: "rabbitmq:alpine"
     networks:

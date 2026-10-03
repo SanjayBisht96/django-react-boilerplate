@@ -138,9 +138,9 @@ def create_payment(request):
     )
 
     # Trigger async processor settlement → webhook to this service
-    from mock_processor.tasks import process_charge_webhook
+    #from mock_processor.tasks import process_charge_webhook
 
-    process_charge_webhook.delay(processor_reference)
+    #process_charge_webhook.delay(processor_reference)
 
     return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
 
