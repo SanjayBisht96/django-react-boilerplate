@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import LedgerEntry, Payment
+from .models import LedgerEntry, OutboxEvent, Payment
 
 
 class LedgerEntryInline(admin.TabularInline):
@@ -20,6 +20,22 @@ class PaymentAdmin(admin.ModelAdmin):
     search_fields = ("id", "payment_token", "processor_reference", "idempotency_key")
     readonly_fields = ("id", "created", "modified")
     inlines = (LedgerEntryInline,)
+
+
+@admin.register(OutboxEvent)
+class OutboxEventAdmin(admin.ModelAdmin):
+    list_display = ("id", "payment", "event_type", "delivered", "created")
+    list_filter = ("event_type", "delivered")
+    readonly_fields = ("id", "created")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(LedgerEntry)

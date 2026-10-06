@@ -19,6 +19,7 @@ class PaymentSerializer(serializers.ModelSerializer):
             "amount",
             "currency",
             "payment_token",
+            "customer_email",
             "status",
             "failure_code",
             "processor_reference",
@@ -32,3 +33,4 @@ class PaymentCreateSerializer(serializers.Serializer):
     amount = serializers.IntegerField(min_value=1)
     currency = serializers.CharField(default="USD", max_length=3)
     payment_token = serializers.CharField(max_length=255)
+    customer_email = serializers.EmailField(required=False, allow_blank=True, default="")

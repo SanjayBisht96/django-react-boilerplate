@@ -35,3 +35,6 @@ PASSWORD_HASHERS = [
 # Celery
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
+
+# In tests, charge the mock processor in-process (no HTTP server needed)
+MOCK_PROCESSOR_URL = ""

@@ -5,6 +5,7 @@ from . import views
 app_name = "payments"
 
 urlpatterns = [
+    path("tokenize", views.tokenize, name="tokenize"),
     path("payments", views.create_payment, name="create-payment"),
     path("payments/<uuid:payment_id>", views.get_payment, name="get-payment"),
     path("payments/<uuid:payment_id>/replay", views.replay_payment, name="replay-payment"),

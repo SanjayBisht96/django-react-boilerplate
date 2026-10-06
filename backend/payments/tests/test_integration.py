@@ -108,7 +108,7 @@ class EndToEndPaymentFlowTest(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["status"], "succeeded")
-        self.assertEqual(len(data["ledger"]), 2)
+        self.assertEqual(len(data["ledger"]), 4)
 
     def test_full_payment_flow_failure(self):
         """Tokenize → Create → Webhook failed."""
@@ -211,7 +211,7 @@ class EndToEndPaymentFlowTest(TestCase):
 
         # Verify only one ledger entry
         payment = Payment.objects.get(processor_reference=processor_ref)
-        self.assertEqual(payment.ledger_entries.count(), 1)
+        self.assertEqual(payment.ledger_entries.count(), 3)
 
     def test_reverse_order_webhooks(self):
         """Final event first, then pending — correct final status."""
@@ -255,7 +255,7 @@ class EndToEndPaymentFlowTest(TestCase):
         # Verify status is still succeeded
         payment = Payment.objects.get(processor_reference=processor_ref)
         self.assertEqual(payment.status, "succeeded")
-        self.assertEqual(payment.ledger_entries.count(), 1)
+        self.assertEqual(payment.ledger_entries.count(), 3)
 
     def test_invalid_signature_rejected(self):
         """Webhook with invalid signature is rejected."""
@@ -391,4 +391,4 @@ class MockProcessorIntegrationTest(TestCase):
         # Verify
         payment = Payment.objects.get(id=payment_id)
         self.assertEqual(payment.status, "succeeded")
-        self.assertEqual(payment.ledger_entries.count(), 1)
+        self.assertEqual(payment.ledger_entries.count(), 3)

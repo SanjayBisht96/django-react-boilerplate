@@ -258,6 +258,13 @@ DEFENDER_REDIS_URL = config("REDIS_URL")
 PROCESSOR_WEBHOOK_SECRET = config("PROCESSOR_WEBHOOK_SECRET", default="test-secret")
 PAYMENTS_WEBHOOK_URL = config("PAYMENTS_WEBHOOK_URL", default="http://localhost:8000")
 
+REDIS_URL = config("REDIS_URL", default="")
+KAFKA_BOOTSTRAP_SERVERS = config("KAFKA_BOOTSTRAP_SERVERS", default="localhost:9092")
+MOCK_PROCESSOR_URL = config("MOCK_PROCESSOR_URL", default="http://localhost:8000/processor")
+MERCHANT_WEBHOOK_URL = config("MERCHANT_WEBHOOK_URL", default="")
+MERCHANT_WEBHOOK_SECRET = config("MERCHANT_WEBHOOK_SECRET", default="test-secret")
+PAYMENTS_CREATE_RATE = config("PAYMENTS_CREATE_RATE", default="20/min")
+
 # Admin Env Label
 ADMIN_ENVIRONMENT_LABEL = config("ADMIN_ENVIRONMENT_LABEL", default="")
 ADMIN_ENVIRONMENT_COLOR = config("ADMIN_ENVIRONMENT_COLOR", default="#111827")

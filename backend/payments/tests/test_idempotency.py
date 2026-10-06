@@ -118,7 +118,9 @@ class IdempotencyCreateTest(TestCase):
         data = response.json()
         self.assertEqual(data["id"], payment_id)
         self.assertEqual(data["status"], "pending")
-        self.assertEqual(data["ledger"], [])
+        self.assertEqual(
+            [entry["status"] for entry in data["ledger"]], ["created", "pending"]
+        )
 
     def test_get_payment_not_found(self):
         """GET /api/payments/{id} with invalid ID returns 404."""

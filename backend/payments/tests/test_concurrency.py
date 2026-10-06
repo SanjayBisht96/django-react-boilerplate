@@ -39,6 +39,13 @@ class ConcurrentWebhookTest(TransactionTestCase):
             processor_reference="pr_test_concurrent",
         )
 
+    def tearDown(self):
+        # Close connections cached per-thread so the test DB can be dropped
+        from django.db import connections
+
+        for conn in connections.all():
+            conn.close()
+
     #@skipIf(IS_SQLITE, "SQLite does not support concurrent writes; use PostgreSQL")
     def test_concurrent_same_final_event(self):
         """Two simultaneous deliveries of the same final event → one ledger entry."""
@@ -67,6 +74,10 @@ class ConcurrentWebhookTest(TransactionTestCase):
                 results.append(response.status_code)
             except Exception as e:
                 errors.append(str(e))
+            finally:
+                from django.db import connections
+
+                connections.close_all()
 
         threads = [threading.Thread(target=deliver) for _ in range(2)]
         for t in threads:
@@ -120,6 +131,10 @@ class ConcurrentWebhookTest(TransactionTestCase):
                 results.append(response.status_code)
             except Exception as e:
                 errors.append(str(e))
+            finally:
+                from django.db import connections
+
+                connections.close_all()
 
         t1 = threading.Thread(target=deliver, args=(body1, sig1))
         t2 = threading.Thread(target=deliver, args=(body2, sig2))

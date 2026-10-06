@@ -27,4 +27,4 @@ WORKDIR /home/user/app/backend
 COPY backend/ /home/user/app/backend
 
 USER user
-CMD gunicorn payment_gateway.wsgi --log-file - -b 0.0.0.0:8000 --reload
+CMD gunicorn payment_gateway.wsgi --log-file - -b 0.0.0.0:8000 --reload --workers 4

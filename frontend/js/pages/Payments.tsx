@@ -31,10 +31,15 @@ const maskReference = (ref: string | null): string => {
 };
 
 const formatAmount = (amount: number, currency: string): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-  }).format(amount / 100);
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+    }).format(amount / 100);
+  } catch {
+    // Fall back to a plain formatted amount if the stored currency code is invalid
+    return `${(amount / 100).toFixed(2)} ${currency}`;
+  }
 };
 
 const Payments = () => {
@@ -45,6 +50,7 @@ const Payments = () => {
   const [paymentToken, setPaymentToken] = useState('');
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState('USD');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
@@ -68,7 +74,7 @@ const Payments = () => {
     setTokenizing(true);
     setTokenError(null);
     try {
-      const response = await fetch('/processor/tokenize', {
+      const response = await fetch('/api/tokenize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
@@ -138,6 +144,7 @@ const Payments = () => {
           payment_token: paymentToken,
           amount: Math.round(Number(amount) * 100),
           currency: currency.toUpperCase() || 'USD',
+          customer_email: customerEmail,
         }),
       });
       if (!response.ok) {
@@ -340,6 +347,18 @@ const Payments = () => {
               required
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Customer email
+            </label>
+            <input
+              className="mt-1 border border-gray-300 rounded px-3 py-2 text-sm w-56"
+              type="email"
+              value={customerEmail}
+              onChange={(e) => setCustomerEmail(e.target.value)}
+              placeholder="you@example.com"
+            />
+          </div>
           <button
             type="submit"
             disabled={submitting}
@@ -369,7 +388,7 @@ const Payments = () => {
                       {formatAmount(payment.amount, payment.currency)}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {maskReference(payment.processor_reference)}
+                      {payment.processor_reference ?? '—'}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">

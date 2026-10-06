@@ -392,3 +392,114 @@ Check our [contributing guide](https://github.com/vintasoftware/django-react-boi
 [![alt text](https://avatars2.githubusercontent.com/u/5529080?s=80&v=4 "Vinta Logo")](https://www.vinta.com.br/)
 
 This project is maintained by [Vinta Software](https://www.vinta.com.br/) and is used in products of Vinta's clients. We are always looking for exciting work! If you need any commercial support, feel free to get in touch: contact@vinta.com.br
+
+## Client retry policy
+
+When creating payments, clients must retry with **exponential backoff + jitter**:
+
+```text
+delay = random(0, min(cap, base * 2^attempt))
+```
+
+Retries must reuse the same `Idempotency-Key`. The API Gateway rate-limits payment creation (default `20/min` per IP, configurable via `PAYMENTS_CREATE_RATE`); excess requests receive HTTP 429.
+
+## Payments flow (end-to-end simulation)
+
+Flow:
+
+```text
+Client → POST /api/tokenize            (Payment Service → mock_processor /tokenize)
+Client → POST /api/payments            (Idempotency-Key header; charge via /processor/charge;
+                                        Payment created → pending, ledger: created, pending)
+Processor → POST /webhooks/processor   (HMAC-signed; select_for_update; ledger entry per event;
+                                        OutboxEvent row written atomically)
+Debezium CDC (connect service)         (streams OutboxEvent INSERT via Postgres WAL → topic "payment_events")
+consumers service                      (Kafka → Celery task dispatch send_payment_email)
+celery worker                          (send_mail via SMTP → MailHog at http://localhost:8025)
+Client → GET /api/payments/{id}        (status + append-only ledger history)
+```
+
+> Debezium and the `consumers` service are part of `docker-compose.yml`, so once
+> `docker compose up -d` and `./scripts/register-debezium-connector.sh` have run
+> once, the CDC → email path is fully automatic. The older polling commands
+> (`publish_outbox`) are kept as a fallback/manual path.
+
+### 1. Seed dummy payment methods/charges (first time only)
+
+```bash
+docker compose exec backend python manage.py seed_dummy_data --cards 7 --banks 4 --charges 10
+```
+
+Test tokens: `tok_test_card_success`, `tok_test_card_declined` (fails), `tok_test_bank_success`,
+or tokenize a new card via `POST /api/tokenize`.
+
+### 2. Create a payment
+
+```bash
+curl -X POST localhost:8000/api/payments \
+  -H "Idempotency-Key: demo-1" \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 5000, "currency": "USD", "payment_token": "tok_test_card_success", "customer_email": "you@example.com"}'
+# → 201, status "pending", ledger [created, pending], note processor_reference: pr_...
+```
+
+### 3. Simulate processor webhooks
+
+```bash
+docker compose exec backend python manage.py simulate_webhooks --reference pr_... --mode normal
+# modes: normal | duplicate | reverse | concurrent
+```
+
+### 4. Start the outbox CDC pipeline (docker compose, one-time setup)
+
+```bash
+# Debezium broker + connect service are already in docker-compose.yml
+docker compose up -d db kafka connect consumers celery
+./scripts/register-debezium-connector.sh
+```
+
+### 5. Watch the CDC → email pipeline deliver (automatic)
+
+```bash
+docker compose logs -f consumers celery
+# emails visible at http://localhost:8025
+```
+
+### 6. (Optional) Use the poller fallback commands instead of CDC
+
+```bash
+docker compose exec backend python manage.py publish_outbox --loop
+docker compose exec backend python manage.py consume_payment_events
+```
+
+### 7. Inspect the result
+
+```bash
+curl localhost:8000/api/payments/<id>
+# status: succeeded, ledger: [created, pending, pending, succeeded]
+```
+
+Other useful commands:
+
+```bash
+# Admin-only replay of a stuck payment
+curl -X POST localhost:8000/api/payments/<id>/replay -u admin:password
+
+# Reconciliation
+docker compose exec backend python manage.py reconcile_settlement --file <path>
+
+# k6 stress test of the webhook endpoint
+k6 run --vus 50 --duration 30s k6/webhook_stress_test.js
+```
+
+Environment variables (`backend/.env`):
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection |
+| `PROCESSOR_WEBHOOK_SECRET` | HMAC secret for processor webhook signatures |
+| `MOCK_PROCESSOR_URL` | Base URL of mock processor (`http://backend:8000/processor` in Docker) |
+| `KAFKA_BOOTSTRAP_SERVERS` | Kafka brokers (`kafka:29092` in Docker) |
+| `REDIS_URL` | Redis for Celery/result backend |
+| `CELERY_BROKER_URL` | Celery broker (`redis://result:6379/0` in Docker) |
+| `PAYMENTS_WEBHOOK_URL` | Where mock_processor delivers webhooks (`http://backend:8000`) |
