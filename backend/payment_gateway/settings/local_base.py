@@ -68,9 +68,26 @@ LOGGING = {
 JS_REVERSE_JS_MINIFY = False
 
 # Django-CSP
-LOCAL_HOST_URL = "http://localhost:3000"
-LOCAL_HOST_WS_URL = "ws://localhost:3000/ws"
-CSP_SCRIPT_SRC += [LOCAL_HOST_URL, LOCAL_HOST_WS_URL]
-CSP_CONNECT_SRC += [LOCAL_HOST_URL, LOCAL_HOST_WS_URL]
+LOCAL_HOST_URL = "http://localhost:3001"
+LOCAL_HOST_WS_URL = "ws://localhost:3001/ws"
+
+# 1. Scripts: Allow scripts from React Dev Server & unsafe-eval (required for Webpack HMR)
+CSP_SCRIPT_SRC += [
+    LOCAL_HOST_URL,
+    LOCAL_HOST_WS_URL,
+    "'unsafe-eval'",
+    "'unsafe-inline'",
+]
+
+# 2. Connections: Allow XHR/WebSockets for React Dev Server, Backend API & Chrome DevTools
+CSP_CONNECT_SRC += [
+    LOCAL_HOST_URL,
+    LOCAL_HOST_WS_URL,
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:*",
+    "ws://localhost:*",
+    "chrome-extension://*",
+]
 CSP_FONT_SRC += [LOCAL_HOST_URL]
 CSP_IMG_SRC += [LOCAL_HOST_URL]

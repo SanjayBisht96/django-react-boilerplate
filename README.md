@@ -76,18 +76,18 @@ Send us an email at contact@vintasoftware.com telling us a bit more about how ou
 -   [ ] Open the command line and go to the directory you want to start your project in
 -   [ ] Start your project using (replace `project_name` with your project name and remove the curly braces):
     ```
-    django-admin startproject {{project_name}} --extension py,json,yml,yaml,toml --name Dockerfile,README.md,.env.example,.gitignore,Makefile,.npmrc --template=https://github.com/vintasoftware/django-react-boilerplate/archive/refs/heads/main.zip
+    django-admin startproject payment_gateway --extension py,json,yml,yaml,toml --name Dockerfile,README.md,.env.example,.gitignore,Makefile,.npmrc --template=https://github.com/vintasoftware/django-react-boilerplate/archive/refs/heads/main.zip
     ```
     Alternatively, you may start the project in the current directory by placing a `.` right after the project name, using the following command:
     ```
-    django-admin startproject {{project_name}} . --extension py,json,yml,yaml,toml --name Dockerfile,README.md,.env.example,.gitignore,Makefile,.npmrc --template=https://github.com/vintasoftware/django-react-boilerplate/archive/refs/heads/main.zip
+    django-admin startproject payment_gateway . --extension py,json,yml,yaml,toml --name Dockerfile,README.md,.env.example,.gitignore,Makefile,.npmrc --template=https://github.com/vintasoftware/django-react-boilerplate/archive/refs/heads/main.zip
     ```
-In the next steps, always remember to replace {{project_name}} with your project's name (in case it isn't yet):
+In the next steps, always remember to replace payment_gateway with your project's name (in case it isn't yet):
 -   [ ] Above: don't forget the `--extension` and `--name` params!
--   [ ] Go into project's root directory: `cd {{project_name}}`
+-   [ ] Go into project's root directory: `cd payment_gateway`
 -   [ ] Change the first line of README to the name of the project
--   [ ] Add an email address to the `ADMINS` settings variable in `{{project_name}}/backend/{{project_name}}/settings/base.py`
--   [ ] Change the `SERVER_EMAIL` to the email address used to send e-mails in `{{project_name}}/backend/{{project_name}}/settings/production.py`
+-   [ ] Add an email address to the `ADMINS` settings variable in `payment_gateway/backend/payment_gateway/settings/base.py`
+-   [ ] Change the `SERVER_EMAIL` to the email address used to send e-mails in `payment_gateway/backend/payment_gateway/settings/production.py`
 
 After completing ALL of the above, remove this `Project bootstrap` section from the project README. Then follow `Running` below.
 
@@ -101,13 +101,13 @@ After completing ALL of the above, remove this `Project bootstrap` section from 
 
 -   Do the following:
     -   Create a git-untracked `local.py` settings file:
-        `cp backend/{{project_name}}/settings/local.py.example backend/{{project_name}}/settings/local.py`
+        `cp backend/payment_gateway/settings/local.py.example backend/payment_gateway/settings/local.py`
     -   Create a git-untracked `.env.example` file:
         `cp backend/.env.example backend/.env`
 
 ### If you are using Docker:
 
--   Open the `backend/.env` file on a text editor and uncomment the line `DATABASE_URL=postgres://{{project_name}}:password@db:5432/{{project_name}}`
+-   Open the `backend/.env` file on a text editor and uncomment the line `DATABASE_URL=postgres://payment_gateway:password@db:5432/payment_gateway`
 -   Open a new command line window and go to the project's directory
 -   Run the initial setup:
     `make docker_setup`
@@ -142,7 +142,7 @@ After completing ALL of the above, remove this `Project bootstrap` section from 
 
 -   Open the `backend/.env` file on a text editor and do one of the following:
     -   If you wish to use SQLite locally, uncomment the line `DATABASE_URL=sqlite:///db.sqlite3`
-    -   If you wish to use PostgreSQL locally, uncomment and edit the line `DATABASE_URL=postgres://{{project_name}}:password@db:5432/{{project_name}}` in order to make it correctly point to your database URL
+    -   If you wish to use PostgreSQL locally, uncomment and edit the line `DATABASE_URL=postgres://payment_gateway:password@db:5432/payment_gateway` in order to make it correctly point to your database URL
         -   The url format is the following: `postgres://USER:PASSWORD@HOST:PORT/NAME`
     -   If you wish to use another database engine locally, add a new `DATABASE_URL` setting for the database you wish to use
         -   Please refer to [dj-database-url](https://github.com/jazzband/dj-database-url#url-schema) on how to configure `DATABASE_URL` for commonly used engines
@@ -175,7 +175,7 @@ After completing ALL of the above, remove this `Project bootstrap` section from 
 
 #### Setup Celery
 
--   `poetry run celery --app={{project_name}} worker --loglevel=info`
+-   `poetry run celery --app=payment_gateway worker --loglevel=info`
 
 #### Setup Redis
 
@@ -259,9 +259,9 @@ Keep reading to learn how to configure the prompted environment variables.
 
 #### `ALLOWED_HOSTS`
 
-Chances are your project name isn't unique in Render, and you'll get a randomized suffix as your full app URL like: `https://{{project_name}}-a1b2.onrender.com`.
+Chances are your project name isn't unique in Render, and you'll get a randomized suffix as your full app URL like: `https://payment_gateway-a1b2.onrender.com`.
 
-But this will only happen after the first deploy, so you are not able to properly fill `ALLOWED_HOSTS` yet. Simply set it to `*` then fix it later to something like `{{project_name}}-a1b2.onrender.com` and your domain name like `example.org`.
+But this will only happen after the first deploy, so you are not able to properly fill `ALLOWED_HOSTS` yet. Simply set it to `*` then fix it later to something like `payment_gateway-a1b2.onrender.com` and your domain name like `example.org`.
 
 #### `ENABLE_DJANGO_COLLECTSTATIC`
 
@@ -392,3 +392,120 @@ Check our [contributing guide](https://github.com/vintasoftware/django-react-boi
 [![alt text](https://avatars2.githubusercontent.com/u/5529080?s=80&v=4 "Vinta Logo")](https://www.vinta.com.br/)
 
 This project is maintained by [Vinta Software](https://www.vinta.com.br/) and is used in products of Vinta's clients. We are always looking for exciting work! If you need any commercial support, feel free to get in touch: contact@vinta.com.br
+
+## Client retry policy
+
+When creating payments, clients must retry with **exponential backoff + jitter**:
+
+```text
+delay = random(0, min(cap, base * 2^attempt))
+```
+
+Retries must reuse the same `Idempotency-Key`. The API Gateway rate-limits payment creation (default `20/min` per IP, configurable via `PAYMENTS_CREATE_RATE`); excess requests receive HTTP 429.
+
+## Payments flow (end-to-end simulation)
+
+Flow:
+
+```text
+Client → POST /api/tokenize            (Payment Service → mock_processor /tokenize)
+Client → POST /api/payments            (Idempotency-Key header; charge via /processor/charge;
+                                        Payment created → pending, ledger: created, pending)
+Processor → POST /webhooks/processor   (HMAC-signed; select_for_update; ledger entry per event;
+                                        OutboxEvent row written atomically)
+Debezium CDC (connect service)         (streams OutboxEvent INSERT via Postgres WAL → topic "payment_events")
+consumers service                      (Kafka → Celery task dispatch send_payment_email)
+celery worker                          (send_mail via SMTP → MailHog at http://localhost:8025)
+Client → GET /api/payments/{id}        (status + append-only ledger history)
+```
+
+> Debezium and the `consumers` service are part of `docker-compose.yml`, so once
+> `docker compose up -d` and `./scripts/register-debezium-connector.sh` have run
+> once, the CDC → email path is fully automatic. The older polling commands
+> (`publish_outbox`) are kept as a fallback/manual path.
+
+### 1. Seed dummy payment methods/charges (first time only)
+
+```bash
+docker compose exec backend python manage.py seed_dummy_data --cards 7 --banks 4 --charges 10
+```
+
+Test tokens: `tok_test_card_success`, `tok_test_card_declined` (fails), `tok_test_bank_success`,
+or tokenize a new card via `POST /api/tokenize`.
+
+### 2. Create a payment
+
+```bash
+curl -X POST localhost:8000/api/payments \
+  -H "Idempotency-Key: demo-1" \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 5000, "currency": "USD", "payment_token": "tok_test_card_success", "customer_email": "you@example.com"}'
+# → 201, status "pending", ledger [created, pending], note processor_reference: pr_...
+```
+
+### 3. Simulate processor webhooks
+
+```bash
+docker compose exec backend python manage.py simulate_webhooks --reference pr_... --mode normal
+# modes: normal | duplicate | reverse | concurrent
+```
+
+### 4. Start the outbox CDC pipeline (docker compose, one-time setup)
+
+```bash
+# Debezium broker + connect service are already in docker-compose.yml
+docker compose up -d db kafka connect consumers celery
+./scripts/register-debezium-connector.sh
+```
+
+### 5. Watch the CDC → email pipeline deliver (automatic)
+
+```bash
+docker compose logs -f consumers celery
+# emails visible at http://localhost:8025
+```
+
+### 6. (Optional) Use the poller fallback commands instead of CDC
+
+```bash
+docker compose exec backend python manage.py publish_outbox --loop
+docker compose exec backend python manage.py consume_payment_events
+```
+
+### 7. Inspect the result
+
+```bash
+curl localhost:8000/api/payments/<id>
+# status: succeeded, ledger: [created, pending, pending, succeeded]
+```
+
+Other useful commands:
+
+```bash
+# Admin-only replay of a stuck payment
+curl -X POST localhost:8000/api/payments/<id>/replay -u admin:password
+
+# Reconciliation
+docker compose exec backend python manage.py reconcile_settlement --file <path>
+
+# k6 stress test of the webhook endpoint
+k6 run --vus 50 --duration 30s k6/webhook_stress_test.js
+```
+
+Environment variables (`backend/.env`):
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection |
+| `PROCESSOR_WEBHOOK_SECRET` | HMAC secret for processor webhook signatures |
+| `MOCK_PROCESSOR_URL` | Base URL of mock processor (`http://backend:8000/processor` in Docker) |
+| `KAFKA_BOOTSTRAP_SERVERS` | Kafka brokers (`kafka:29092` in Docker) |
+| `REDIS_URL` | Redis for Celery/result backend |
+| `CELERY_BROKER_URL` | Celery broker (`redis://result:6379/0` in Docker) |
+| `PAYMENTS_WEBHOOK_URL` | Where mock_processor delivers webhooks (`http://backend:8000`) |
+
+# views
+
+![alt text](payments.png)
+
+![alt text](mail.png)

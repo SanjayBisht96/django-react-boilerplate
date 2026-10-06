@@ -1,22 +1,93 @@
+name: payment_gateway
+
 services:
+
   db:
-    image: "postgres:alpine"
+    image: "postgres:16-alpine"
     environment:
-      - POSTGRES_USER={{project_name}}
+      - POSTGRES_USER=payment_gateway
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB={{project_name}}
+      - POSTGRES_DB=payment_gateway
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_wal_senders=10", "-c", "max_replication_slots=10"]
     ports:
       - "5432"
     volumes:
       - dbdata:/var/lib/postgresql/data:delegated
+    networks:
+      - payment_gateway
+
+  db-test:
+    image: "postgres:16-alpine"
+    environment:
+      - POSTGRES_USER=payment_gateway
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=payment_gateway_test
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - payment_gateway
 
   broker:
     image: "rabbitmq:alpine"
+    networks:
+      - payment_gateway
+
+  zookeeper:
+    image: "confluentinc/cp-zookeeper:7.6.0"
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=2181
+      - ZOOKEEPER_TICK_TIME=2000
+    networks:
+      - payment_gateway
+
+  kafka:
+    image: "confluentinc/cp-kafka:7.6.0"
+    ports:
+      - "9092:9092"
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT_INTERNAL
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    depends_on:
+      - zookeeper
+    networks:
+      - payment_gateway
+
+  connect:
+    image: "debezium/connect:2.7.3.Final"
+    environment:
+      - BOOTSTRAP_SERVERS=kafka:29092
+      - GROUP_ID=debezium
+      - CONFIG_STORAGE_TOPIC=debezium_configs
+      - OFFSET_STORAGE_TOPIC=debezium_offsets
+      - STATUS_STORAGE_TOPIC=debezium_statuses
+      - KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+      - VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+      - CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE=false
+      - CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE=false
+      - CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR=1
+      - CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR=1
+      - CONNECT_STATUS_STORAGE_REPLICATION_FACTOR=1
+    ports:
+      - "8083:8083"
+    depends_on:
+      - kafka
+      - db
+    networks:
+      - payment_gateway
 
   result:
     image: "redis:alpine"
     ports:
-    - "6379:6379"
+      - "6379:6379"
+    networks:
+      - payment_gateway
 
   frontend:
     build:
@@ -27,6 +98,8 @@ services:
       - /app/node_modules
     ports:
       - "3000:3000"
+    networks:
+      - payment_gateway
 
   backend:
     build:
@@ -42,12 +115,14 @@ services:
       - broker
       - result
       - frontend
+    networks:
+      - payment_gateway
 
   celery:
     build:
       dockerfile: backend/Dockerfile
       context: .
-    command: celery --app={{project_name}} worker --loglevel=info
+    command: celery --app=payment_gateway worker --loglevel=info
     volumes:
       - ./:/home/user/app/
     env_file: backend/.env
@@ -55,14 +130,38 @@ services:
       - db
       - broker
       - result
+    networks:
+      - payment_gateway
 
-  mailhog: # service for faking a SMTP server
+  consumers:
+    build:
+      dockerfile: backend/Dockerfile
+      context: .
+    command: python manage.py consume_payment_events
+    volumes:
+      - ./:/home/user/app/
+    env_file: backend/.env
+    depends_on:
+      - db
+      - kafka
+      - celery
+      - connect
+    networks:
+      - payment_gateway
+
+  mailhog:
     image: mailhog/mailhog
     ports:
-      - '1025:1025' # smtp server
-      - '8025:8025' # web ui
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - payment_gateway
 
 volumes:
   dbdata:
-    name: {{project_name}}_dbdata
+    name: "payment_gateway_dbdata"
     external: true
+
+networks:
+  payment_gateway:
+    driver: bridge

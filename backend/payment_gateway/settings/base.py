@@ -41,10 +41,13 @@ INSTALLED_APPS = [
     "django_guid",
     "common",
     "users",
+    "mock_processor",
+    "payments",
 ]
 
 MIDDLEWARE = [
     "django.middleware.gzip.GZipMiddleware",
+    "csp.middleware.CSPMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django_permissions_policy.PermissionsPolicyMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -54,12 +57,11 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "csp.middleware.CSPMiddleware",
     "defender.middleware.FailedLoginMiddleware",
     "django_guid.middleware.guid_middleware",
 ]
 
-ROOT_URLCONF = "{{project_name}}.urls"
+ROOT_URLCONF = "payment_gateway.urls"
 
 TEMPLATES = [
     {
@@ -88,7 +90,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "{{project_name}}.wsgi.application"
+WSGI_APPLICATION = "payment_gateway.wsgi.application"
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -252,6 +254,16 @@ DEFENDER_LOGIN_FAILURE_LIMIT = 3
 DEFENDER_COOLOFF_TIME = 300  # 5 minutes
 DEFENDER_LOCKOUT_TEMPLATE = "defender/lockout.html"
 DEFENDER_REDIS_URL = config("REDIS_URL")
+
+PROCESSOR_WEBHOOK_SECRET = config("PROCESSOR_WEBHOOK_SECRET", default="test-secret")
+PAYMENTS_WEBHOOK_URL = config("PAYMENTS_WEBHOOK_URL", default="http://localhost:8000")
+
+REDIS_URL = config("REDIS_URL", default="")
+KAFKA_BOOTSTRAP_SERVERS = config("KAFKA_BOOTSTRAP_SERVERS", default="localhost:9092")
+MOCK_PROCESSOR_URL = config("MOCK_PROCESSOR_URL", default="http://localhost:8000/processor")
+MERCHANT_WEBHOOK_URL = config("MERCHANT_WEBHOOK_URL", default="")
+MERCHANT_WEBHOOK_SECRET = config("MERCHANT_WEBHOOK_SECRET", default="test-secret")
+PAYMENTS_CREATE_RATE = config("PAYMENTS_CREATE_RATE", default="20/min")
 
 # Admin Env Label
 ADMIN_ENVIRONMENT_LABEL = config("ADMIN_ENVIRONMENT_LABEL", default="")

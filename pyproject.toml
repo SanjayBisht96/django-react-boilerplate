@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "{{project_name}}"
+name = "payment_gateway"
 version = "0.1.0"
 description = "Django 5, React, Tailwind 4 with Python 3 and webpack project boilerplate"
 authors = ["Vinta Software <contact@vinta.com.br>"]
@@ -32,12 +32,14 @@ django-csp = "^4.0"
 django-defender = "^0.9.8"
 django-guid = "^3.5.2"
 drf-spectacular = "^0.29.0"
+kafka-python = "^3.0.11"
 
 [tool.poetry.group.dev.dependencies]
 coverage = "^7.13.4"
 model-bakery = "^1.23.3"
 pre-commit = "^4.5.1"
 ruff = "^0.15.6"
+tblib = "^3.2.0"
 
 [build-system]
 requires = ["poetry-core>=1.2.0"]

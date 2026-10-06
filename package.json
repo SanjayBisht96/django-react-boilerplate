@@ -1,8 +1,8 @@
 {
-  "name": "{{project_name}}-frontend",
+  "name": "payment_gateway-frontend",
   "version": "0.0.1",
   "private": true,
-  "description": "{{project_name}} frontend.",
+  "description": "payment_gateway frontend.",
   "engines": {
     "node": ">=22 <23"
   },

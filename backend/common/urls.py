@@ -7,4 +7,6 @@ app_name = "common"
 urlpatterns = [
     path("", views.IndexView.as_view(), name="index"),
     path("users", views.IndexView.as_view(), name="index"),
+    path("payments", views.IndexView.as_view(), name="index"),
+    path("mock-processor", views.IndexView.as_view(), name="index"),
 ]

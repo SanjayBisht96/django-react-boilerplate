@@ -33,7 +33,7 @@ npm-debug.log
 *.map
 
 # General
-/{{project_name}}-venv/
+/payment_gateway-venv/
 /venv/
 /env/
 /output/
@@ -50,3 +50,7 @@ tmp_email/
 .direnv
 .envrc
 .tool-versions
+
+# Local static/media roots
+/backend/staticfiles/*
+/backend/mediafiles/*
