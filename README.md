@@ -503,3 +503,9 @@ Environment variables (`backend/.env`):
 | `REDIS_URL` | Redis for Celery/result backend |
 | `CELERY_BROKER_URL` | Celery broker (`redis://result:6379/0` in Docker) |
 | `PAYMENTS_WEBHOOK_URL` | Where mock_processor delivers webhooks (`http://backend:8000`) |
+
+# views
+
+![alt text](payments.png)
+
+![alt text](mail.png)
