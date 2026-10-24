@@ -3,6 +3,7 @@
 import time
 
 from django.core.management.base import BaseCommand
+from django.db import transaction
 
 from payments.kafka_utils import get_producer
 from payments.models import OutboxEvent
@@ -19,7 +20,20 @@ class Command(BaseCommand):
         producer = get_producer()
         try:
             while True:
-                events = OutboxEvent.objects.filter(delivered=False).order_by("created")[:100]
+                # ISSUE 7 FIX: Atomically claim undelivered events using
+                # select_for_update(nowait=True) within a transaction. This locks
+                # the rows so concurrent publisher workers cannot fetch and deliver
+                # the same events, preventing duplicate Kafka message delivery.
+                with transaction.atomic():
+                    events = list(
+                        OutboxEvent.objects.select_for_update(nowait=True)
+                        .filter(delivered=False)
+                        .order_by("created")[:100]
+                    )
+                    for event in events:
+                        event.delivered = True
+                        event.save(update_fields=["delivered"])
+
                 count = 0
                 for event in events:
                     producer.send("payment_events", value={
@@ -27,8 +41,6 @@ class Command(BaseCommand):
                         "event_type": event.event_type,
                         "payload": event.payload,
                     })
-                    event.delivered = True
-                    event.save(update_fields=["delivered"])
                     count += 1
                 producer.flush()
                 if count:

@@ -18,7 +18,7 @@ class Payment(IndexedTimeStampedModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     idempotency_key = models.CharField(
-        _("idempotency key"), max_length=255, null=True, blank=True
+        _("idempotency key"), max_length=255, null=True, blank=True, db_index=True
     )
     idempotency_body_hash = models.CharField(
         _("idempotency body hash"), max_length=64, null=True, blank=True
@@ -36,7 +36,7 @@ class Payment(IndexedTimeStampedModel):
         _("failure code"), max_length=50, null=True, blank=True
     )
     processor_reference = models.CharField(
-        _("processor reference"), max_length=255, null=True, blank=True
+        _("processor reference"), max_length=255, null=True, blank=True, db_index=True
     )
 
     class Meta:
@@ -119,6 +119,12 @@ class OutboxEvent(models.Model):
         verbose_name = _("outbox event")
         verbose_name_plural = _("outbox events")
         ordering = ["created"]
+        indexes = [
+            # ISSUE 6c FIX: Composite index on (delivered, created) so the outbox
+            # publisher can efficiently fetch undelivered events ordered by creation
+            # time without a separate sort step.
+            models.Index(fields=["delivered", "created"], name="outbox_delivered_created_idx"),
+        ]
 
     def __str__(self):
         return f"OutboxEvent {self.event_type} for payment {self.payment_id}"
