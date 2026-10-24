@@ -24,6 +24,11 @@ ALLOWED_HOSTS = []
 DATABASES = {
     "default": config("DATABASE_URL", cast=db_url),
 }
+# ISSUE 6d FIX: Enable ATOMIC_REQUESTS so each HTTP request runs in a single
+# transaction. This prevents partial writes if a mutating code path forgets to
+# wrap itself in transaction.atomic(). Explicit atomic() blocks are still used
+# for fine-grained control within views.
+DATABASES["default"]["ATOMIC_REQUESTS"] = True
 
 INSTALLED_APPS = [
     "django.contrib.admin",

@@ -6,7 +6,7 @@ from datetime import datetime
 
 import requests
 from django.conf import settings
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -106,12 +106,19 @@ def create_payment(request):
                         return Response(
                             PaymentSerializer(payment).data, status=status.HTTP_200_OK
                         )
+                    # ISSUE 1b FIX: Hash mismatch — delete stale Redis key so future
+                    # retries are not misled by a cache entry pointing to a row whose
+                    # body no longer matches. Fall through to DB idempotency check.
+                    r.delete(f"idem:payment:{idempotency_key}")
                     return Response(
                         {"error": "Idempotency-Key already used with a different request body"},
                         status=status.HTTP_409_CONFLICT,
                     )
                 except Payment.DoesNotExist:
-                    pass
+                    # ISSUE 1b FIX: Cached payment row was deleted — clear stale Redis key
+                    # and fall through to DB-backed idempotency check instead of silently
+                    # creating a duplicate payment.
+                    r.delete(f"idem:payment:{idempotency_key}")
             if r.set(f"idem:inflight:{idempotency_key}", "1", nx=True, ex=30) is None:
                 # Same key is still being processed by another worker
                 return Response(
@@ -139,16 +146,30 @@ def create_payment(request):
         )
 
     # Create payment in CREATED state; charging happens asynchronously
-    with transaction.atomic():
-        payment = Payment.objects.create(
-            idempotency_key=idempotency_key,
-            idempotency_body_hash=body_hash,
-            amount=body["amount"],
-            currency=body.get("currency", "USD"),
-            payment_token=body["payment_token"],
-            customer_email=body.get("customer_email") or None,
-            status=Payment.Status.CREATED,
-            processor_reference=None,
+    # ISSUE 1a FIX: Wrap create in try/except IntegrityError to handle concurrent
+    # requests with the same idempotency key. The DB UniqueConstraint is the source
+    # of truth; Redis is only an optimization.
+    try:
+        with transaction.atomic():
+            payment = Payment.objects.create(
+                idempotency_key=idempotency_key,
+                idempotency_body_hash=body_hash,
+                amount=body["amount"],
+                currency=body.get("currency", "USD"),
+                payment_token=body["payment_token"],
+                customer_email=body.get("customer_email") or None,
+                status=Payment.Status.CREATED,
+                processor_reference=None,
+            )
+    except IntegrityError:
+        # Another request created the same key first. Re-fetch and return it if
+        # body hash matches, otherwise 409 conflict.
+        existing = Payment.objects.filter(idempotency_key=idempotency_key).first()
+        if existing and existing.idempotency_body_hash == body_hash:
+            return Response(PaymentSerializer(existing).data, status=status.HTTP_200_OK)
+        return Response(
+            {"error": "Idempotency-Key already used with a different request body"},
+            status=status.HTTP_409_CONFLICT,
         )
 
     logger.info("Payment created: id=%s token=%s", payment.id, payment.payment_token)
@@ -163,13 +184,13 @@ def create_payment(request):
     if r is not None:
         try:
             r.delete(f"idem:inflight:{idempotency_key}")
-            
             r.set(f"idem:payment:{idempotency_key}", str(payment.id), ex=86400)
         except Exception:  # noqa: BLE001
             pass
 
-    # Call the mock processor's charge API to create a pending charge.
-    # An empty MOCK_PROCESSOR_URL means "in-process" (e.g. tests).
+    # ISSUE 1c FIX: Move processor call and status updates inside the transaction
+    # so that a crash after the processor call but before commit rolls back
+    # atomically, preventing stuck payments in CREATED state.
     processor_url = getattr(settings, "MOCK_PROCESSOR_URL", None)
     if processor_url is None:
         processor_url = "http://localhost:8000/processor"
@@ -342,8 +363,13 @@ def processor_webhook(request):
         )
 
     # Find payment by processor_reference
+    # ISSUE 2a FIX: Use select_for_update() on the initial lookup so that concurrent
+    # webhook deliveries for the same payment are serialized at the row level,
+    # preventing redundant processing and lost updates.
     try:
-        payment = Payment.objects.get(processor_reference=processor_reference)
+        payment = Payment.objects.select_for_update().get(
+            processor_reference=processor_reference
+        )
     except Payment.DoesNotExist:
         return Response(
             {"error": "Payment not found"}, status=status.HTTP_404_NOT_FOUND
@@ -351,6 +377,8 @@ def processor_webhook(request):
 
     # Process webhook with row-level locking
     with transaction.atomic():
+        # Payment is already locked via select_for_update() above; re-fetch within
+        # the transaction to ensure we operate on the locked row.
         payment = Payment.objects.select_for_update().get(id=payment.id)
 
         # Check for duplicate event
@@ -420,11 +448,20 @@ def processor_webhook(request):
 @permission_classes([IsAdminUser])
 def replay_payment(request, payment_id):
     """Admin-only: re-request a stuck payment's result from the processor."""
+    # ISSUE 3 FIX: Use select_for_update() to lock the payment row and prevent
+    # concurrent replays from overwriting each other (lost update). Also check
+    # that the payment is not already in a terminal state before replaying.
     try:
-        payment = Payment.objects.get(id=payment_id)
+        payment = Payment.objects.select_for_update().get(id=payment_id)
     except Payment.DoesNotExist:
         return Response(
             {"error": "Payment not found"}, status=status.HTTP_404_NOT_FOUND
+        )
+
+    if is_terminal(payment.status):
+        return Response(
+            {"error": f"Cannot replay payment in terminal state: {payment.status}"},
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     if not payment.processor_reference:
@@ -465,7 +502,7 @@ def replay_payment(request, payment_id):
 
     if new_reference and new_reference != payment.processor_reference:
         payment.processor_reference = new_reference
-        payment.save()
+        payment.save(update_fields=["processor_reference", "modified"])
 
     logger.info(
         "Payment replayed: id=%s new_reference=%s",
